@@ -2,7 +2,7 @@
 name = "background-task-orchestrator"
 version = "0.1.0"
 description = ""
-authors = ["Naveen Anil <naveen.anil@wind-pioneers.com>"]
+authors = ["Naveen Anil <naveenms01@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
