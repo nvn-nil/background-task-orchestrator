@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "background-task-orchestrator"
+version = "0.1.0"
+description = ""
+authors = ["Naveen Anil <naveen.anil@wind-pioneers.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.13"
+psutil = "^5.9.8"
+
+
+[tool.poetry.group.dev.dependencies]
+pyinstaller = "^6.7.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
