@@ -1,0 +1,74 @@
+exclude: "docs|.git|.tox|dist|background_task_orchestrator.egg-info|.pytest_cache"
+
+default_stages: [commit]
+
+fail_fast: true
+
+default_language_version:
+  python: python3
+
+repos:
+  - repo: https://github.com/nvn-nil/pre-commit-line-no-commit
+    rev: 0.0.4
+    hooks:
+      - id: line-no-commit
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.4.0
+    hooks:
+      - id: check-added-large-files
+        args: ["--maxkb=10240"]
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://gitlab.com/bmares/check-json5
+    rev: v1.0.0
+    hooks:
+      - id: check-json5
+
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.1.10
+    hooks:
+      - id: remove-crlf
+      - id: remove-tabs
+        files: '.*\.py'
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.11.5
+    hooks:
+      - id: isort
+
+  - repo: https://github.com/psf/black
+    rev: 22.8.0
+    hooks:
+      - id: black
+        args: ["--line-length", "120"]
+        language_version: python3
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+        language_version: python3
+
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v2.2.1
+    hooks:
+      - id: prettier
+
+  - repo: https://github.com/octue/conventional-commits
+    rev: 0.9.0
+    hooks:
+      - id: check-commit-message-is-conventional
+        stages: [commit-msg]
+
+  - repo: https://github.com/windpioneers/pre-commit-hooks
+    rev: 0.0.5
+    hooks:
+      - id: check-branch-name
+        args:
+          - "^main$"
+          - "^([a-z][a-z0-9#/]*)(-[a-z0-9#]+)*$"

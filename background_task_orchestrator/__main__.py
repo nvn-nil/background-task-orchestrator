@@ -1,23 +1,24 @@
-from contextlib import contextmanager
-import logging
 import json
-import subprocess
-import psutil
-import time
-import threading
+import logging
 import os
-import sys
+import signal
+import subprocess
+import threading
+import time
 from argparse import ArgumentParser
 from collections import deque
-import signal
+from contextlib import contextmanager
 from datetime import datetime
+import psutil
+
+import sys
 
 
 logger = logging.getLogger(__name__)
 
 stdout_handler = logging.StreamHandler(sys.stdout)
 stdout_handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 stdout_handler.setFormatter(formatter)
 logger.addHandler(stdout_handler)
 
@@ -34,21 +35,24 @@ def popen_and_call(command, index, on_start, on_finish, *popen_args, **popen_kwa
     on_exit is a callable object, and popen_args is a list/tuple of args that
     would give to subprocess.Popen.
     """
+
     def run_in_process(on_start, on_finish, *popen_args, **popen_kwargs):
         proc = subprocess.Popen(command, *popen_args, **popen_kwargs)
-        
+
         if callable(on_start):
             on_start(proc, index)
- 
+
         proc.index = index
         proc.wait()
- 
+
         if callable(on_finish):
             on_finish(proc, index)
-        
+
         return
 
-    monitor_thread = threading.Thread(target=run_in_process, args=(on_start, on_finish, *popen_args), kwargs=popen_kwargs)
+    monitor_thread = threading.Thread(
+        target=run_in_process, args=(on_start, on_finish, *popen_args), kwargs=popen_kwargs
+    )
     monitor_thread.daemon = True
     monitor_thread.start()
     logger.debug("Spawned thread to handle process with index %s", index)
@@ -61,7 +65,7 @@ def load_inputs(input_file):
 
     if not isinstance(data, list):
         raise Exception("Input json must be an array")
-    
+
     for item in data:
         assert isinstance(item.get("args", []), list)
         assert isinstance(item.get("kwargs", {}), dict)
@@ -92,14 +96,7 @@ def spawn_task(idx, inputs, run_script):
 
     cmd = run_script.replace(r"\{\s*args\s*\}", args_str).replace(r"\{\s*kwargs\s*\}", kwargs_str)
     logger.debug("Prepared command for index %s is : %s", idx, cmd)
-    popen_and_call(
-        cmd,
-        idx,
-        on_start,
-        on_finish,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
+    popen_and_call(cmd, idx, on_start, on_finish, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     logger.info("Spawned process with index %s", idx)
 
 
@@ -116,7 +113,7 @@ def suspend_task():
     if processes:
         process = processes.pop()
         logger.debug("Suspending process with index %s", process.index)
-        
+
         if has_sigstop:
             logger.debug("Sending process signal.SIGSTOP signal")
             process.send_signal(signal.SIGSTOP)
@@ -124,18 +121,18 @@ def suspend_task():
             logger.debug("Using psutil to suspend process")
             p = psutil.Process(process.pid)
             p.suspend()
-        
+
         logger.info("Suspended process with index %s", process.index)
         suspended_processes.append(process)
 
 
 def continue_suspened_task():
     has_sigstop = hasattr(signal, "SIGSTOP")
-    
+
     if suspended_processes:
         process = suspended_processes.popleft()
         logger.debug("Continuing process with index %s", process.index)
-            
+
         if has_sigstop:
             logger.debug("Sending process signal.SIGCONT signal")
             process.send_signal(signal.SIGCONT)
@@ -143,7 +140,7 @@ def continue_suspened_task():
             logger.debug("Using psutil to continue process")
             p = psutil.Process(process.pid)
             p.resume()
-            
+
         logger.info("Continued process with index %s", process.index)
         processes.append(process)
 
@@ -170,7 +167,7 @@ def user_flow():
                 "running_indices": [proc.index for proc in list(processes)],
                 "terminated_indices": list(terminated_indices),
                 "completed_indices": list(completed_indices),
-                "suspended_indices": [proc.index for proc in list(suspended_processes)]
+                "suspended_indices": [proc.index for proc in list(suspended_processes)],
             }
             json.dump(data, fo, indent=2)
 
@@ -181,7 +178,7 @@ def main():
     parser.add_argument("--run-script", type=str, required=True)
     parser.add_argument("--target-cpu-utilization", type=int, required=False, default=80)
     parser.add_argument("--max-processes", type=int, required=False, default=os.cpu_count() - 2)
-    parser.add_argument('--kill-tasks', dest='kill_tasks', default=False, action='store_true')
+    parser.add_argument("--kill-tasks", dest="kill_tasks", default=False, action="store_true")
     parser.add_argument("--verbose", dest="verbose", default=False, action="store_true")
     args = parser.parse_args()
 
@@ -206,7 +203,9 @@ def main():
             logger.debug("cpu_utilization %s", cpu_utilization)
 
             cpu_per_logical_core = 100 / os.cpu_count()
-            cpu_available = (cpu_utilization <= args.target_cpu_utilization) and (cpu_utilization + cpu_per_logical_core) < args.target_cpu_utilization
+            cpu_available = (cpu_utilization <= args.target_cpu_utilization) and (
+                cpu_utilization + cpu_per_logical_core
+            ) < args.target_cpu_utilization
             cpu_over_utilized = cpu_utilization > args.target_cpu_utilization
             processes_allowed = len(processes) < args.max_processes
             inputs_complete = set(sorted(unique_completed_indices)) == set(input_indices)
@@ -215,18 +214,17 @@ def main():
 
             if inputs_complete:
                 logger.info("All tasks complete, exiting main loop")
-                break            
-            
+                break
+
             input_index = list(set(input_indices) - set(completed_indices) - set(inputs_processing))[0]
             logger.debug("Next task index: %s", input_index)
-
 
             if cpu_available and has_suspened_processes:
                 logger.debug("Continuing suspended task")
                 continue_suspened_task()
                 time.sleep(2)
                 logger.info("Continued suspended task")
-            elif  cpu_available and processes_allowed:
+            elif cpu_available and processes_allowed:
                 logger.debug("Spawning new task with input_index: %s", input_index)
                 spawn_task(input_index, inputs[input_index], args.run_script)
                 time.sleep(2)
@@ -240,8 +238,13 @@ def main():
 
                 time.sleep(2)
 
-            logger.info("Running tasks: %s, CPU util: %s, completed tasks: %s", len(processes), f"{cpu_utilization}%", len(completed_indices))
-    
+            logger.info(
+                "Running tasks: %s, CPU util: %s, completed tasks: %s",
+                len(processes),
+                f"{cpu_utilization}%",
+                len(completed_indices),
+            )
+
 
 if __name__ == "__main__":
     main()
